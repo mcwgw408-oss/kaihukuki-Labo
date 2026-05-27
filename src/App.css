@@ -206,6 +206,11 @@ textarea {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 }
 
+.note-form {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr) auto;
+  align-items: stretch;
+}
+
 .social-form {
   grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.35fr) auto;
   align-items: stretch;
@@ -256,11 +261,17 @@ textarea {
   margin-bottom: 5px;
 }
 
+.post-detail,
 .post-memo {
   margin: 8px 0 0;
   color: #607067;
   font-size: 13px;
   white-space: pre-wrap;
+}
+
+.post-detail {
+  color: #355044;
+  font-weight: 700;
 }
 
 .meta {
@@ -380,6 +391,7 @@ textarea {
   .content-grid,
   .entry-form,
   .memo-form,
+  .note-form,
   .social-form,
   .writing-fields,
   .item-list article.social-item {

@@ -12,6 +12,7 @@ type PostItem = {
   title: string
   body: string
   memo: string
+  series: string
   status: Status
   publishDate: string
   publicUrl: string
@@ -53,7 +54,8 @@ const initialPosts: PostItem[] = [
     channel: 'note',
     title: '回復期に整える朝の小さな習慣',
     body: '',
-    memo: '',
+    memo: '導入に「無理なく続く」を入れる',
+    series: '回復期の生活リズム',
     status: '候補',
     publishDate: '',
     publicUrl: '',
@@ -64,6 +66,7 @@ const initialPosts: PostItem[] = [
     title: '',
     body: '今日の回復メモ。小さく整えるだけでも、次の一歩の足場になる。',
     memo: '短く、読後に残る言葉を先頭へ。',
+    series: '',
     status: '執筆中',
     publishDate: '',
     publicUrl: '',
@@ -74,6 +77,7 @@ const initialPosts: PostItem[] = [
     title: '',
     body: '焦らない日を、ただの停滞ではなく整える時間として記録する。',
     memo: 'Threadsでは少しやわらかい言い回しにする。',
+    series: '',
     status: '予約投稿',
     publishDate: '2026-06-01',
     publicUrl: '',
@@ -125,6 +129,7 @@ function App() {
     const title = String(formData.get('title') ?? '').trim()
     const body = String(formData.get('body') ?? '').trim()
     const memo = String(formData.get('memo') ?? '').trim()
+    const series = String(formData.get('series') ?? '').trim()
 
     if (channel === 'note' && !title) return
     if (channel !== 'note' && !body) return
@@ -135,6 +140,7 @@ function App() {
       title,
       body,
       memo,
+      series,
       status: String(formData.get('status')) as Status,
       publishDate: String(formData.get('publishDate') ?? ''),
       publicUrl: String(formData.get('publicUrl') ?? '').trim(),
@@ -381,12 +387,12 @@ function PostPage({
         <p>
           {isShortPost
             ? 'ステータス、公開日、公開URLとあわせて、右側で本文とメモを書けます。'
-            : 'タイトル、ステータス、公開日、公開URLを管理します。'}
+            : 'タイトル、シリーズ、メモ、ステータス、公開日、公開URLを管理します。'}
         </p>
       </div>
 
       <form
-        className={`entry-form ${isShortPost ? 'social-form' : ''}`}
+        className={`entry-form ${isShortPost ? 'social-form' : 'note-form'}`}
         onSubmit={(event) => onSubmit(event, channel)}
       >
         {isShortPost ? (
@@ -425,27 +431,37 @@ function PostPage({
           </>
         ) : (
           <>
+            <div className="form-controls">
+              <label>
+                タイトル
+                <input name="title" placeholder="投稿タイトル" required />
+              </label>
+              <label>
+                シリーズ
+                <input name="series" placeholder="シリーズ名" />
+              </label>
+              <label>
+                ステータス
+                <select defaultValue="候補" name="status">
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                公開日
+                <input name="publishDate" type="date" />
+              </label>
+              <label>
+                公開URL
+                <input name="publicUrl" placeholder="https://..." type="url" />
+              </label>
+            </div>
             <label>
-              タイトル
-              <input name="title" placeholder="投稿タイトル" required />
-            </label>
-            <label>
-              ステータス
-              <select defaultValue="候補" name="status">
-                {statuses.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              公開日
-              <input name="publishDate" type="date" />
-            </label>
-            <label className="wide">
-              公開URL
-              <input name="publicUrl" placeholder="https://..." type="url" />
+              メモ
+              <textarea name="memo" placeholder="構成、狙い、残しておきたい補足など" />
             </label>
             <button type="submit">追加</button>
           </>
@@ -484,9 +500,10 @@ function ItemList({
           <div>
             <span className="channel">{channelLabels[item.channel]}</span>
             <h4>{getPostHeading(item)}</h4>
-            {item.channel !== 'note' && item.memo && (
-              <p className="post-memo">{item.memo}</p>
+            {item.channel === 'note' && item.series && (
+              <p className="post-detail">シリーズ: {item.series}</p>
             )}
+            {item.memo && <p className="post-memo">{item.memo}</p>}
           </div>
           <div className="meta">
             {onStatusChange ? (
