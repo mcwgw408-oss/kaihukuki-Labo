@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 
-type PageId = 'home' | 'note' | 'x' | 'threads' | 'memo'
+type PageId = 'home' | 'log' | 'note' | 'x' | 'threads' | 'memo'
 type Status = '候補' | '執筆中' | '予約投稿' | '投稿完了'
-type Channel = Exclude<PageId, 'home' | 'memo'>
+type Channel = 'note' | 'x' | 'threads'
 
 type PostItem = {
   id: number
@@ -27,6 +27,7 @@ const statuses: Status[] = ['候補', '執筆中', '予約投稿', '投稿完了
 
 const pageLabels: Record<PageId, string> = {
   home: 'トップ',
+  log: 'ログ一覧',
   note: 'note',
   x: 'X投稿',
   threads: 'Threads投稿',
@@ -199,6 +200,9 @@ function App() {
             statusCounts={statusCounts}
           />
         )}
+        {activePage === 'log' && (
+          <LogPage onStatusChange={updatePostStatus} posts={posts} />
+        )}
         {activePage === 'note' && (
           <PostPage
             channel="note"
@@ -312,6 +316,43 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
+  )
+}
+
+function LogPage({
+  onStatusChange,
+  posts,
+}: {
+  onStatusChange: (id: number, status: Status) => void
+  posts: PostItem[]
+}) {
+  const sortedPosts = posts
+    .slice()
+    .sort((a, b) => {
+      if (!a.publishDate && !b.publishDate) return b.id - a.id
+      if (!a.publishDate) return 1
+      if (!b.publishDate) return -1
+      return b.publishDate.localeCompare(a.publishDate)
+    })
+
+  return (
+    <section className="page">
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">ログ</p>
+          <h2>投稿ログ一覧</h2>
+        </div>
+        <p>note、X投稿、Threads投稿をまとめて確認できます。</p>
+      </div>
+
+      <section className="panel">
+        <div className="panel-heading">
+          <h3>全投稿</h3>
+          <span>{posts.length}件</span>
+        </div>
+        <ItemList items={sortedPosts} onStatusChange={onStatusChange} />
+      </section>
+    </section>
   )
 }
 
