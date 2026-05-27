@@ -248,25 +248,48 @@ textarea {
   white-space: nowrap;
 }
 
+.inline-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-field span {
+  color: #607067;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .badge {
   border-radius: 999px;
   padding: 4px 10px;
   font-weight: 700;
 }
 
-.status-候補 {
+.status-select {
+  width: auto;
+  min-width: 120px;
+  min-height: 32px;
+  border-radius: 999px;
+  color: #24342a;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 32px 4px 10px;
+}
+
+.status-candidate {
   background: #eef2ea;
 }
 
-.status-執筆中 {
+.status-writing {
   background: #e6f0ff;
 }
 
-.status-予約投稿 {
+.status-scheduled {
   background: #fff3d6;
 }
 
-.status-投稿完了 {
+.status-published {
   background: #dcf4e8;
 }
 

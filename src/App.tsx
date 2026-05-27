@@ -37,6 +37,13 @@ const channelLabels: Record<Channel, string> = {
   threads: 'Threads投稿',
 }
 
+const statusTone: Record<Status, string> = {
+  候補: 'candidate',
+  執筆中: 'writing',
+  予約投稿: 'scheduled',
+  投稿完了: 'published',
+}
+
 const initialPosts: PostItem[] = [
   {
     id: 1,
@@ -120,6 +127,12 @@ function App() {
     event.currentTarget.reset()
   }
 
+  const updatePostStatus = (id: number, status: Status) => {
+    setPosts((current) =>
+      current.map((post) => (post.id === id ? { ...post, status } : post)),
+    )
+  }
+
   const addMemo = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
@@ -173,6 +186,7 @@ function App() {
         {activePage === 'note' && (
           <PostPage
             channel="note"
+            onStatusChange={updatePostStatus}
             onSubmit={addPost}
             posts={posts.filter((post) => post.channel === 'note')}
           />
@@ -180,6 +194,7 @@ function App() {
         {activePage === 'x' && (
           <PostPage
             channel="x"
+            onStatusChange={updatePostStatus}
             onSubmit={addPost}
             posts={posts.filter((post) => post.channel === 'x')}
           />
@@ -187,6 +202,7 @@ function App() {
         {activePage === 'threads' && (
           <PostPage
             channel="threads"
+            onStatusChange={updatePostStatus}
             onSubmit={addPost}
             posts={posts.filter((post) => post.channel === 'threads')}
           />
@@ -285,11 +301,17 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 
 type PostPageProps = {
   channel: Channel
+  onStatusChange: (id: number, status: Status) => void
   onSubmit: (event: FormEvent<HTMLFormElement>, channel: Channel) => void
   posts: PostItem[]
 }
 
-function PostPage({ channel, onSubmit, posts }: PostPageProps) {
+function PostPage({
+  channel,
+  onStatusChange,
+  onSubmit,
+  posts,
+}: PostPageProps) {
   return (
     <section className="page">
       <div className="page-header">
@@ -331,13 +353,19 @@ function PostPage({ channel, onSubmit, posts }: PostPageProps) {
           <h3>{channelLabels[channel]}一覧</h3>
           <span>{posts.length}件</span>
         </div>
-        <ItemList items={posts} />
+        <ItemList items={posts} onStatusChange={onStatusChange} />
       </section>
     </section>
   )
 }
 
-function ItemList({ items }: { items: PostItem[] }) {
+function ItemList({
+  items,
+  onStatusChange,
+}: {
+  items: PostItem[]
+  onStatusChange?: (id: number, status: Status) => void
+}) {
   if (items.length === 0) {
     return <p className="empty">まだ登録がありません。</p>
   }
@@ -351,7 +379,28 @@ function ItemList({ items }: { items: PostItem[] }) {
             <h4>{item.title}</h4>
           </div>
           <div className="meta">
-            <span className={`badge status-${item.status}`}>{item.status}</span>
+            {onStatusChange ? (
+              <label className="inline-field">
+                <span>ステータス</span>
+                <select
+                  className={`status-select status-${statusTone[item.status]}`}
+                  onChange={(event) =>
+                    onStatusChange(item.id, event.target.value as Status)
+                  }
+                  value={item.status}
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <span className={`badge status-${statusTone[item.status]}`}>
+                {item.status}
+              </span>
+            )}
             <span>{item.publishDate || '公開日未定'}</span>
             {item.publicUrl ? (
               <a href={item.publicUrl} rel="noreferrer" target="_blank">
