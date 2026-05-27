@@ -206,6 +206,25 @@ textarea {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 }
 
+.social-form {
+  grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.35fr) auto;
+  align-items: stretch;
+}
+
+.form-controls,
+.writing-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.writing-fields {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.social-form button {
+  align-self: end;
+}
+
 .item-list,
 .memo-list {
   display: grid;
@@ -227,9 +246,21 @@ textarea {
   align-items: center;
 }
 
+.item-list article.social-item {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, auto);
+  align-items: start;
+}
+
 .channel {
   display: block;
   margin-bottom: 5px;
+}
+
+.post-memo {
+  margin: 8px 0 0;
+  color: #607067;
+  font-size: 13px;
+  white-space: pre-wrap;
 }
 
 .meta {
@@ -348,7 +379,10 @@ textarea {
   .status-row,
   .content-grid,
   .entry-form,
-  .memo-form {
+  .memo-form,
+  .social-form,
+  .writing-fields,
+  .item-list article.social-item {
     grid-template-columns: 1fr;
   }
 
