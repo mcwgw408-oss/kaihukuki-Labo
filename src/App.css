@@ -230,6 +230,12 @@ textarea {
   align-self: end;
 }
 
+.form-actions {
+  display: grid;
+  gap: 8px;
+  align-self: end;
+}
+
 .item-list,
 .memo-list {
   display: grid;
@@ -242,6 +248,13 @@ textarea {
   border-radius: 8px;
   background: #fbfcfa;
   padding: 16px;
+}
+
+.memo-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
 }
 
 .item-list article {
@@ -335,6 +348,19 @@ textarea {
   background: #dcf4e8;
 }
 
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.item-actions button {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
 .memo-list p {
   margin: 0;
   color: #24342a;
@@ -394,11 +420,16 @@ textarea {
   .note-form,
   .social-form,
   .writing-fields,
+  .memo-list article,
   .item-list article.social-item {
     grid-template-columns: 1fr;
   }
 
   .meta {
+    justify-content: flex-start;
+  }
+
+  .item-actions {
     justify-content: flex-start;
   }
 }

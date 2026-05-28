@@ -99,6 +99,11 @@ function App() {
   const [activePage, setActivePage] = useState<PageId>('home')
   const [posts, setPosts] = useState<PostItem[]>(initialPosts)
   const [memos, setMemos] = useState<MemoItem[]>(initialMemos)
+  const [editingPostId, setEditingPostId] = useState<number | null>(null)
+  const [editingMemoId, setEditingMemoId] = useState<number | null>(null)
+
+  const editingPost = posts.find((post) => post.id === editingPostId) ?? null
+  const editingMemo = memos.find((memo) => memo.id === editingMemoId) ?? null
 
   const statusCounts = useMemo(
     () =>
@@ -123,19 +128,20 @@ function App() {
     [posts],
   )
 
-  const addPost = (event: FormEvent<HTMLFormElement>, channel: Channel) => {
+  const savePost = (event: FormEvent<HTMLFormElement>, channel: Channel) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const title = String(formData.get('title') ?? '').trim()
     const body = String(formData.get('body') ?? '').trim()
     const memo = String(formData.get('memo') ?? '').trim()
     const series = String(formData.get('series') ?? '').trim()
+    const isEditingCurrentChannel = editingPost?.channel === channel
 
     if (channel === 'note' && !title) return
     if (channel !== 'note' && !body) return
 
     const item: PostItem = {
-      id: Date.now(),
+      id: isEditingCurrentChannel ? editingPost.id : Date.now(),
       channel,
       title,
       body,
@@ -146,7 +152,12 @@ function App() {
       publicUrl: String(formData.get('publicUrl') ?? '').trim(),
     }
 
-    setPosts((current) => [item, ...current])
+    setPosts((current) =>
+      isEditingCurrentChannel
+        ? current.map((post) => (post.id === editingPost.id ? item : post))
+        : [item, ...current],
+    )
+    setEditingPostId(null)
     event.currentTarget.reset()
   }
 
@@ -156,22 +167,43 @@ function App() {
     )
   }
 
-  const addMemo = (event: FormEvent<HTMLFormElement>) => {
+  const editPost = (item: PostItem) => {
+    setEditingPostId(item.id)
+    setActivePage(item.channel)
+  }
+
+  const deletePost = (id: number) => {
+    setPosts((current) => current.filter((post) => post.id !== id))
+    if (editingPostId === id) setEditingPostId(null)
+  }
+
+  const saveMemo = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const memo = String(formData.get('memo') ?? '').trim()
 
     if (!memo) return
 
-    setMemos((current) => [
-      {
-        id: Date.now(),
-        memo,
-        note: String(formData.get('note') ?? '').trim(),
-      },
-      ...current,
-    ])
+    const item: MemoItem = {
+      id: editingMemo?.id ?? Date.now(),
+      memo,
+      note: String(formData.get('note') ?? '').trim(),
+    }
+
+    setMemos((current) =>
+      editingMemo
+        ? current.map((currentMemo) =>
+            currentMemo.id === editingMemo.id ? item : currentMemo,
+          )
+        : [item, ...current],
+    )
+    setEditingMemoId(null)
     event.currentTarget.reset()
+  }
+
+  const deleteMemo = (id: number) => {
+    setMemos((current) => current.filter((memo) => memo.id !== id))
+    if (editingMemoId === id) setEditingMemoId(null)
   }
 
   return (
@@ -207,33 +239,61 @@ function App() {
           />
         )}
         {activePage === 'log' && (
-          <LogPage onStatusChange={updatePostStatus} posts={posts} />
+          <LogPage
+            onDelete={deletePost}
+            onEdit={editPost}
+            onStatusChange={updatePostStatus}
+            posts={posts}
+          />
         )}
         {activePage === 'note' && (
           <PostPage
             channel="note"
+            editingPost={editingPost?.channel === 'note' ? editingPost : null}
+            onCancelEdit={() => setEditingPostId(null)}
+            onDelete={deletePost}
+            onEdit={editPost}
             onStatusChange={updatePostStatus}
-            onSubmit={addPost}
+            onSubmit={savePost}
             posts={posts.filter((post) => post.channel === 'note')}
           />
         )}
         {activePage === 'x' && (
           <PostPage
             channel="x"
+            editingPost={editingPost?.channel === 'x' ? editingPost : null}
+            onCancelEdit={() => setEditingPostId(null)}
+            onDelete={deletePost}
+            onEdit={editPost}
             onStatusChange={updatePostStatus}
-            onSubmit={addPost}
+            onSubmit={savePost}
             posts={posts.filter((post) => post.channel === 'x')}
           />
         )}
         {activePage === 'threads' && (
           <PostPage
             channel="threads"
+            editingPost={
+              editingPost?.channel === 'threads' ? editingPost : null
+            }
+            onCancelEdit={() => setEditingPostId(null)}
+            onDelete={deletePost}
+            onEdit={editPost}
             onStatusChange={updatePostStatus}
-            onSubmit={addPost}
+            onSubmit={savePost}
             posts={posts.filter((post) => post.channel === 'threads')}
           />
         )}
-        {activePage === 'memo' && <MemoPage memos={memos} onSubmit={addMemo} />}
+        {activePage === 'memo' && (
+          <MemoPage
+            editingMemo={editingMemo}
+            memos={memos}
+            onCancelEdit={() => setEditingMemoId(null)}
+            onDelete={deleteMemo}
+            onEdit={setEditingMemoId}
+            onSubmit={saveMemo}
+          />
+        )}
       </main>
     </div>
   )
@@ -259,7 +319,7 @@ function HomePage({
       <div className="page-header">
         <div>
           <p className="eyebrow">まとめ</p>
-          <h2>発信の全体像</h2>
+          <h2>発信の全体ハブ</h2>
         </div>
         <p>
           note、X、Threads、仮メモをひとつの場所で見渡して、次に書くものを選べます。
@@ -326,9 +386,13 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 }
 
 function LogPage({
+  onDelete,
+  onEdit,
   onStatusChange,
   posts,
 }: {
+  onDelete: (id: number) => void
+  onEdit: (item: PostItem) => void
   onStatusChange: (id: number, status: Status) => void
   posts: PostItem[]
 }) {
@@ -356,7 +420,12 @@ function LogPage({
           <h3>全投稿</h3>
           <span>{posts.length}件</span>
         </div>
-        <ItemList items={sortedPosts} onStatusChange={onStatusChange} />
+        <ItemList
+          items={sortedPosts}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onStatusChange={onStatusChange}
+        />
       </section>
     </section>
   )
@@ -364,6 +433,10 @@ function LogPage({
 
 type PostPageProps = {
   channel: Channel
+  editingPost: PostItem | null
+  onCancelEdit: () => void
+  onDelete: (id: number) => void
+  onEdit: (item: PostItem) => void
   onStatusChange: (id: number, status: Status) => void
   onSubmit: (event: FormEvent<HTMLFormElement>, channel: Channel) => void
   posts: PostItem[]
@@ -371,6 +444,10 @@ type PostPageProps = {
 
 function PostPage({
   channel,
+  editingPost,
+  onCancelEdit,
+  onDelete,
+  onEdit,
   onStatusChange,
   onSubmit,
   posts,
@@ -386,13 +463,14 @@ function PostPage({
         </div>
         <p>
           {isShortPost
-            ? 'ステータス、公開日、公開URLとあわせて、右側で本文とメモを書けます。'
+            ? 'ステータス、公開日、公開URLとあわせて、投稿本文とメモを残せます。'
             : 'タイトル、シリーズ、メモ、ステータス、公開日、公開URLを管理します。'}
         </p>
       </div>
 
       <form
         className={`entry-form ${isShortPost ? 'social-form' : 'note-form'}`}
+        key={editingPost?.id ?? `new-${channel}`}
         onSubmit={(event) => onSubmit(event, channel)}
       >
         {isShortPost ? (
@@ -400,7 +478,7 @@ function PostPage({
             <div className="form-controls">
               <label>
                 ステータス
-                <select defaultValue="候補" name="status">
+                <select defaultValue={editingPost?.status ?? statuses[0]} name="status">
                   {statuses.map((status) => (
                     <option key={status} value={status}>
                       {status}
@@ -410,39 +488,66 @@ function PostPage({
               </label>
               <label>
                 公開日
-                <input name="publishDate" type="date" />
+                <input
+                  defaultValue={editingPost?.publishDate}
+                  name="publishDate"
+                  type="date"
+                />
               </label>
               <label>
                 公開URL
-                <input name="publicUrl" placeholder="https://..." type="url" />
+                <input
+                  defaultValue={editingPost?.publicUrl}
+                  name="publicUrl"
+                  placeholder="https://..."
+                  type="url"
+                />
               </label>
             </div>
             <div className="writing-fields">
               <label>
                 本文
-                <textarea name="body" placeholder="投稿本文を書く" required />
+                <textarea
+                  defaultValue={editingPost?.body}
+                  name="body"
+                  placeholder="投稿本文を書く"
+                  required
+                />
               </label>
               <label>
                 メモ
-                <textarea name="memo" placeholder="補足、狙い、あとで直す点など" />
+                <textarea
+                  defaultValue={editingPost?.memo}
+                  name="memo"
+                  placeholder="補足、狙い、あとで直す点など"
+                />
               </label>
             </div>
-            <button type="submit">追加</button>
+            <FormActions isEditing={Boolean(editingPost)} onCancel={onCancelEdit} />
           </>
         ) : (
           <>
             <div className="form-controls">
               <label>
                 タイトル
-                <input name="title" placeholder="投稿タイトル" required />
+                <input
+                  defaultValue={editingPost?.title}
+                  name="title"
+                  placeholder="投稿タイトル"
+                  required
+                />
               </label>
               <label>
                 シリーズ
-                <input name="series" placeholder="シリーズ名" />
+                <input
+                  defaultValue={editingPost?.series}
+                  name="series"
+                  placeholder="シリーズ名"
+                />
               </label>
               <label>
                 ステータス
-                <select defaultValue="候補" name="status">
+                <select defaultValue={editingPost?.status ?? statuses[0]} name="status">
                   {statuses.map((status) => (
                     <option key={status} value={status}>
                       {status}
@@ -452,18 +557,31 @@ function PostPage({
               </label>
               <label>
                 公開日
-                <input name="publishDate" type="date" />
+                <input
+                  defaultValue={editingPost?.publishDate}
+                  name="publishDate"
+                  type="date"
+                />
               </label>
               <label>
                 公開URL
-                <input name="publicUrl" placeholder="https://..." type="url" />
+                <input
+                  defaultValue={editingPost?.publicUrl}
+                  name="publicUrl"
+                  placeholder="https://..."
+                  type="url"
+                />
               </label>
             </div>
             <label>
               メモ
-              <textarea name="memo" placeholder="構成、狙い、残しておきたい補足など" />
+              <textarea
+                defaultValue={editingPost?.memo}
+                name="memo"
+                placeholder="構成、狙い、残しておきたい補足など"
+              />
             </label>
-            <button type="submit">追加</button>
+            <FormActions isEditing={Boolean(editingPost)} onCancel={onCancelEdit} />
           </>
         )}
       </form>
@@ -473,17 +591,45 @@ function PostPage({
           <h3>{channelLabels[channel]}一覧</h3>
           <span>{posts.length}件</span>
         </div>
-        <ItemList items={posts} onStatusChange={onStatusChange} />
+        <ItemList
+          items={posts}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onStatusChange={onStatusChange}
+        />
       </section>
     </section>
   )
 }
 
+function FormActions({
+  isEditing,
+  onCancel,
+}: {
+  isEditing: boolean
+  onCancel: () => void
+}) {
+  return (
+    <div className="form-actions">
+      <button type="submit">{isEditing ? '更新' : '追加'}</button>
+      {isEditing && (
+        <button onClick={onCancel} type="button">
+          取消
+        </button>
+      )}
+    </div>
+  )
+}
+
 function ItemList({
   items,
+  onDelete,
+  onEdit,
   onStatusChange,
 }: {
   items: PostItem[]
+  onDelete?: (id: number) => void
+  onEdit?: (item: PostItem) => void
   onStatusChange?: (id: number, status: Status) => void
 }) {
   if (items.length === 0) {
@@ -536,6 +682,20 @@ function ItemList({
             ) : (
               <span>URL未登録</span>
             )}
+            {(onEdit || onDelete) && (
+              <div className="item-actions">
+                {onEdit && (
+                  <button onClick={() => onEdit(item)} type="button">
+                    編集
+                  </button>
+                )}
+                {onDelete && (
+                  <button onClick={() => onDelete(item.id)} type="button">
+                    削除
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </article>
       ))}
@@ -544,10 +704,18 @@ function ItemList({
 }
 
 function MemoPage({
+  editingMemo,
   memos,
+  onCancelEdit,
+  onDelete,
+  onEdit,
   onSubmit,
 }: {
+  editingMemo: MemoItem | null
   memos: MemoItem[]
+  onCancelEdit: () => void
+  onDelete: (id: number) => void
+  onEdit: (id: number) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   return (
@@ -560,16 +728,29 @@ function MemoPage({
         <p>思いついた断片と補足を、まだ整えずに残せます。</p>
       </div>
 
-      <form className="entry-form memo-form" onSubmit={onSubmit}>
+      <form
+        className="entry-form memo-form"
+        key={editingMemo?.id ?? 'new-memo'}
+        onSubmit={onSubmit}
+      >
         <label>
           メモ
-          <textarea name="memo" placeholder="浮かんだことを書く" required />
+          <textarea
+            defaultValue={editingMemo?.memo}
+            name="memo"
+            placeholder="浮かんだことを書く"
+            required
+          />
         </label>
         <label>
           補足
-          <textarea name="note" placeholder="背景、使い道、関連する投稿案など" />
+          <textarea
+            defaultValue={editingMemo?.note}
+            name="note"
+            placeholder="背景、使い道、関連する投稿案など"
+          />
         </label>
-        <button type="submit">追加</button>
+        <FormActions isEditing={Boolean(editingMemo)} onCancel={onCancelEdit} />
       </form>
 
       <section className="panel">
@@ -580,8 +761,18 @@ function MemoPage({
         <div className="memo-list">
           {memos.map((memo) => (
             <article key={memo.id}>
-              <p>{memo.memo}</p>
-              {memo.note && <small>{memo.note}</small>}
+              <div>
+                <p>{memo.memo}</p>
+                {memo.note && <small>{memo.note}</small>}
+              </div>
+              <div className="item-actions">
+                <button onClick={() => onEdit(memo.id)} type="button">
+                  編集
+                </button>
+                <button onClick={() => onDelete(memo.id)} type="button">
+                  削除
+                </button>
+              </div>
             </article>
           ))}
         </div>
