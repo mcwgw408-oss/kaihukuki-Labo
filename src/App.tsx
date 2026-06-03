@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 
@@ -97,6 +97,7 @@ const initialMemos: MemoItem[] = [
 const postsStorageKey = 'kaihukuki-labo-posts'
 const memosStorageKey = 'kaihukuki-labo-memos'
 const storageBackupSuffix = ':backup'
+const appBasePath = '/kaihukuki-Labo/'
 
 const getPostHeading = (post: PostItem) =>
   post.channel === 'note' || post.channel === 'blog'
@@ -137,6 +138,36 @@ const persistItems = <T,>(storageKey: string, items: T[]) => {
   window.localStorage.setItem(storageKey, nextValue)
 }
 
+const clearAppServiceWorkerCaches = async () => {
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    const currentPageUrl = window.location.href
+
+    await Promise.all(
+      registrations
+        .filter(
+          (registration) =>
+            registration.scope.includes(appBasePath) ||
+            currentPageUrl.startsWith(registration.scope) ||
+            registration.active?.scriptURL.includes(appBasePath) ||
+            registration.installing?.scriptURL.includes(appBasePath) ||
+            registration.waiting?.scriptURL.includes(appBasePath),
+        )
+        .map((registration) => registration.unregister()),
+    )
+  }
+
+  if ('caches' in window) {
+    const cacheKeys = await window.caches.keys()
+
+    await Promise.all(
+      cacheKeys
+        .filter((cacheKey) => cacheKey.toLowerCase().includes('kaihukuki'))
+        .map((cacheKey) => window.caches.delete(cacheKey)),
+    )
+  }
+}
+
 function App() {
   const [activePage, setActivePage] = useState<PageId>('home')
   const [posts, setPosts] = useState<PostItem[]>(() =>
@@ -150,6 +181,12 @@ function App() {
 
   const editingPost = posts.find((post) => post.id === editingPostId) ?? null
   const editingMemo = memos.find((memo) => memo.id === editingMemoId) ?? null
+
+  useEffect(() => {
+    clearAppServiceWorkerCaches().catch((error: unknown) => {
+      console.warn('Failed to clear app service worker caches', error)
+    })
+  }, [])
 
   const exportStorageData = () => {
     const backupData = {
