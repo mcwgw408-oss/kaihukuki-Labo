@@ -503,7 +503,7 @@ function HomePage({
           <ItemList items={nextItems} />
         </section>
 
-        <section className="panel">
+        <section className="panel home-memo-panel">
           <div className="panel-heading">
             <h3>仮メモ</h3>
             <button onClick={() => setActivePage('memo')} type="button">
@@ -513,8 +513,17 @@ function HomePage({
           <div className="memo-list compact">
             {memos.slice(0, 4).map((memo) => (
               <article key={memo.id}>
-                <p>{memo.memo}</p>
-                {memo.note && <small>{memo.note}</small>}
+                <div className="memo-preview-copy">
+                  <p>{memo.memo}</p>
+                  {memo.note && <small>{memo.note}</small>}
+                </div>
+                <button
+                  aria-label="仮メモページで全文を見る"
+                  onClick={() => setActivePage('memo')}
+                  type="button"
+                >
+                  全文
+                </button>
               </article>
             ))}
           </div>

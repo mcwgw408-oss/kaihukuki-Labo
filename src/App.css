@@ -124,7 +124,8 @@ main {
 }
 
 .content-grid {
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
 }
 
 .summary-card,
@@ -389,6 +390,45 @@ textarea {
 
 .compact article {
   padding: 14px;
+}
+
+.home-memo-panel {
+  max-height: 520px;
+  overflow: hidden;
+}
+
+.home-memo-panel .compact {
+  max-height: 430px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.home-memo-panel .memo-list article {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.memo-preview-copy {
+  min-width: 0;
+}
+
+.home-memo-panel .memo-preview-copy p,
+.home-memo-panel .memo-preview-copy small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.home-memo-panel .memo-preview-copy p {
+  -webkit-line-clamp: 5;
+}
+
+.home-memo-panel .memo-preview-copy small {
+  -webkit-line-clamp: 3;
+}
+
+.home-memo-panel .memo-list button {
+  min-height: 34px;
+  padding: 6px 10px;
 }
 
 .empty {
