@@ -57,6 +57,14 @@ nav {
   gap: 8px;
 }
 
+.sidebar-actions {
+  margin-top: auto;
+}
+
+.sidebar-actions button {
+  width: 100%;
+}
+
 button {
   border: 1px solid #cbd8cb;
   border-radius: 8px;
@@ -207,6 +215,11 @@ textarea {
 }
 
 .note-form {
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr) auto;
+  align-items: stretch;
+}
+
+.blog-form {
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr) auto;
   align-items: stretch;
 }
@@ -418,6 +431,7 @@ textarea {
   .entry-form,
   .memo-form,
   .note-form,
+  .blog-form,
   .social-form,
   .writing-fields,
   .memo-list article,

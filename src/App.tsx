@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
 
-type PageId = 'home' | 'log' | 'note' | 'x' | 'threads' | 'memo'
+type PageId = 'home' | 'log' | 'note' | 'blog' | 'x' | 'threads' | 'memo'
 type Status = '候補' | '執筆中' | '予約投稿' | '投稿完了'
-type Channel = 'note' | 'x' | 'threads'
+type Channel = 'note' | 'blog' | 'x' | 'threads'
 
 type PostItem = {
   id: number
@@ -30,6 +30,7 @@ const pageLabels: Record<PageId, string> = {
   home: 'トップ',
   log: 'ログ一覧',
   note: 'note',
+  blog: 'ブログ',
   x: 'X投稿',
   threads: 'Threads投稿',
   memo: '仮メモ',
@@ -37,6 +38,7 @@ const pageLabels: Record<PageId, string> = {
 
 const channelLabels: Record<Channel, string> = {
   note: 'note',
+  blog: 'ブログ',
   x: 'X投稿',
   threads: 'Threads投稿',
 }
@@ -92,18 +94,98 @@ const initialMemos: MemoItem[] = [
   },
 ]
 
+const postsStorageKey = 'kaihukuki-labo-posts'
+const memosStorageKey = 'kaihukuki-labo-memos'
+const storageBackupSuffix = ':backup'
+
 const getPostHeading = (post: PostItem) =>
-  post.channel === 'note' ? post.title : post.body || '本文未入力'
+  post.channel === 'note' || post.channel === 'blog'
+    ? post.title
+    : post.body || '本文未入力'
+
+const sortPostsByPublishDate = (posts: PostItem[]) =>
+  posts.slice().sort((a, b) => {
+    if (!a.publishDate && !b.publishDate) return b.id - a.id
+    if (!a.publishDate) return 1
+    if (!b.publishDate) return -1
+    return b.publishDate.localeCompare(a.publishDate)
+  })
+
+const loadItems = <T,>(storageKey: string, fallback: T[]) => {
+  try {
+    const savedItems = window.localStorage.getItem(storageKey)
+    if (!savedItems) return fallback
+
+    const parsedItems = JSON.parse(savedItems)
+    return Array.isArray(parsedItems) ? (parsedItems as T[]) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const persistItems = <T,>(storageKey: string, items: T[]) => {
+  const nextValue = JSON.stringify(items)
+  const previousValue = window.localStorage.getItem(storageKey)
+
+  if (previousValue && previousValue !== nextValue) {
+    window.localStorage.setItem(
+      `${storageKey}${storageBackupSuffix}`,
+      previousValue,
+    )
+  }
+
+  window.localStorage.setItem(storageKey, nextValue)
+}
 
 function App() {
   const [activePage, setActivePage] = useState<PageId>('home')
-  const [posts, setPosts] = useState<PostItem[]>(initialPosts)
-  const [memos, setMemos] = useState<MemoItem[]>(initialMemos)
+  const [posts, setPosts] = useState<PostItem[]>(() =>
+    loadItems(postsStorageKey, initialPosts),
+  )
+  const [memos, setMemos] = useState<MemoItem[]>(() =>
+    loadItems(memosStorageKey, initialMemos),
+  )
   const [editingPostId, setEditingPostId] = useState<number | null>(null)
   const [editingMemoId, setEditingMemoId] = useState<number | null>(null)
 
   const editingPost = posts.find((post) => post.id === editingPostId) ?? null
   const editingMemo = memos.find((memo) => memo.id === editingMemoId) ?? null
+
+  const exportStorageData = () => {
+    const backupData = {
+      exportedAt: new Date().toISOString(),
+      storageKeys: {
+        posts: postsStorageKey,
+        postsBackup: `${postsStorageKey}${storageBackupSuffix}`,
+        memos: memosStorageKey,
+        memosBackup: `${memosStorageKey}${storageBackupSuffix}`,
+      },
+      posts,
+      memos,
+      rawStorage: {
+        posts: window.localStorage.getItem(postsStorageKey),
+        postsBackup: window.localStorage.getItem(
+          `${postsStorageKey}${storageBackupSuffix}`,
+        ),
+        memos: window.localStorage.getItem(memosStorageKey),
+        memosBackup: window.localStorage.getItem(
+          `${memosStorageKey}${storageBackupSuffix}`,
+        ),
+      },
+    }
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+      type: 'application/json',
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = `kaihukuki-labo-backup-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`
+    link.click()
+    window.URL.revokeObjectURL(url)
+  }
 
   const statusCounts = useMemo(
     () =>
@@ -137,8 +219,8 @@ function App() {
     const series = String(formData.get('series') ?? '').trim()
     const isEditingCurrentChannel = editingPost?.channel === channel
 
-    if (channel === 'note' && !title) return
-    if (channel !== 'note' && !body) return
+    if ((channel === 'note' || channel === 'blog') && !title) return
+    if (channel !== 'note' && channel !== 'blog' && !body) return
 
     const item: PostItem = {
       id: isEditingCurrentChannel ? editingPost.id : Date.now(),
@@ -147,24 +229,28 @@ function App() {
       body,
       memo,
       series,
-      status: String(formData.get('status')) as Status,
+      status: (String(formData.get('status') ?? '投稿完了') || '投稿完了') as Status,
       publishDate: String(formData.get('publishDate') ?? ''),
       publicUrl: String(formData.get('publicUrl') ?? '').trim(),
     }
 
-    setPosts((current) =>
-      isEditingCurrentChannel
-        ? current.map((post) => (post.id === editingPost.id ? item : post))
-        : [item, ...current],
-    )
+    const nextPosts = isEditingCurrentChannel
+      ? posts.map((post) => (post.id === editingPost.id ? item : post))
+      : [item, ...posts]
+
+    persistItems(postsStorageKey, nextPosts)
+    setPosts(nextPosts)
     setEditingPostId(null)
     event.currentTarget.reset()
   }
 
   const updatePostStatus = (id: number, status: Status) => {
-    setPosts((current) =>
-      current.map((post) => (post.id === id ? { ...post, status } : post)),
+    const nextPosts = posts.map((post) =>
+      post.id === id ? { ...post, status } : post,
     )
+
+    persistItems(postsStorageKey, nextPosts)
+    setPosts(nextPosts)
   }
 
   const editPost = (item: PostItem) => {
@@ -173,7 +259,10 @@ function App() {
   }
 
   const deletePost = (id: number) => {
-    setPosts((current) => current.filter((post) => post.id !== id))
+    const nextPosts = posts.filter((post) => post.id !== id)
+
+    persistItems(postsStorageKey, nextPosts)
+    setPosts(nextPosts)
     if (editingPostId === id) setEditingPostId(null)
   }
 
@@ -190,19 +279,23 @@ function App() {
       note: String(formData.get('note') ?? '').trim(),
     }
 
-    setMemos((current) =>
-      editingMemo
-        ? current.map((currentMemo) =>
-            currentMemo.id === editingMemo.id ? item : currentMemo,
-          )
-        : [item, ...current],
-    )
+    const nextMemos = editingMemo
+      ? memos.map((currentMemo) =>
+          currentMemo.id === editingMemo.id ? item : currentMemo,
+        )
+      : [item, ...memos]
+
+    persistItems(memosStorageKey, nextMemos)
+    setMemos(nextMemos)
     setEditingMemoId(null)
     event.currentTarget.reset()
   }
 
   const deleteMemo = (id: number) => {
-    setMemos((current) => current.filter((memo) => memo.id !== id))
+    const nextMemos = memos.filter((memo) => memo.id !== id)
+
+    persistItems(memosStorageKey, nextMemos)
+    setMemos(nextMemos)
     if (editingMemoId === id) setEditingMemoId(null)
   }
 
@@ -226,6 +319,12 @@ function App() {
             </button>
           ))}
         </nav>
+
+        <div className="sidebar-actions">
+          <button onClick={exportStorageData} type="button">
+            データを書き出し
+          </button>
+        </div>
       </aside>
 
       <main>
@@ -256,6 +355,18 @@ function App() {
             onStatusChange={updatePostStatus}
             onSubmit={savePost}
             posts={posts.filter((post) => post.channel === 'note')}
+          />
+        )}
+        {activePage === 'blog' && (
+          <PostPage
+            channel="blog"
+            editingPost={editingPost?.channel === 'blog' ? editingPost : null}
+            onCancelEdit={() => setEditingPostId(null)}
+            onDelete={deletePost}
+            onEdit={editPost}
+            onStatusChange={updatePostStatus}
+            onSubmit={savePost}
+            posts={posts.filter((post) => post.channel === 'blog')}
           />
         )}
         {activePage === 'x' && (
@@ -396,14 +507,7 @@ function LogPage({
   onStatusChange: (id: number, status: Status) => void
   posts: PostItem[]
 }) {
-  const sortedPosts = posts
-    .slice()
-    .sort((a, b) => {
-      if (!a.publishDate && !b.publishDate) return b.id - a.id
-      if (!a.publishDate) return 1
-      if (!b.publishDate) return -1
-      return b.publishDate.localeCompare(a.publishDate)
-    })
+  const sortedPosts = sortPostsByPublishDate(posts)
 
   return (
     <section className="page">
@@ -453,6 +557,8 @@ function PostPage({
   posts,
 }: PostPageProps) {
   const isShortPost = channel !== 'note'
+  const isBlogPost = channel === 'blog'
+  const sortedPosts = sortPostsByPublishDate(posts)
 
   return (
     <section className="page">
@@ -462,18 +568,62 @@ function PostPage({
           <h2>{channelLabels[channel]}ページ</h2>
         </div>
         <p>
-          {isShortPost
+          {isBlogPost
+            ? 'タイトル、公開日、公開URL、メモを管理します。'
+            : isShortPost
             ? 'ステータス、公開日、公開URLとあわせて、投稿本文とメモを残せます。'
             : 'タイトル、シリーズ、メモ、ステータス、公開日、公開URLを管理します。'}
         </p>
       </div>
 
       <form
-        className={`entry-form ${isShortPost ? 'social-form' : 'note-form'}`}
+        className={`entry-form ${
+          isBlogPost ? 'blog-form' : isShortPost ? 'social-form' : 'note-form'
+        }`}
         key={editingPost?.id ?? `new-${channel}`}
         onSubmit={(event) => onSubmit(event, channel)}
       >
-        {isShortPost ? (
+        {isBlogPost ? (
+          <>
+            <div className="form-controls">
+              <label>
+                タイトル
+                <input
+                  defaultValue={editingPost?.title}
+                  name="title"
+                  placeholder="ブログタイトル"
+                  required
+                />
+              </label>
+              <label>
+                公開日
+                <input
+                  defaultValue={editingPost?.publishDate}
+                  name="publishDate"
+                  type="date"
+                />
+              </label>
+              <label>
+                公開URL
+                <input
+                  defaultValue={editingPost?.publicUrl}
+                  name="publicUrl"
+                  placeholder="https://..."
+                  type="url"
+                />
+              </label>
+            </div>
+            <label>
+              メモ
+              <textarea
+                defaultValue={editingPost?.memo}
+                name="memo"
+                placeholder="公開後の補足、直したい点、反応など"
+              />
+            </label>
+            <FormActions isEditing={Boolean(editingPost)} onCancel={onCancelEdit} />
+          </>
+        ) : isShortPost ? (
           <>
             <div className="form-controls">
               <label>
@@ -592,7 +742,7 @@ function PostPage({
           <span>{posts.length}件</span>
         </div>
         <ItemList
-          items={posts}
+          items={sortedPosts}
           onDelete={onDelete}
           onEdit={onEdit}
           onStatusChange={onStatusChange}
@@ -652,7 +802,7 @@ function ItemList({
             {item.memo && <p className="post-memo">{item.memo}</p>}
           </div>
           <div className="meta">
-            {onStatusChange ? (
+            {onStatusChange && item.channel !== 'blog' ? (
               <label className="inline-field">
                 <span>ステータス</span>
                 <select
@@ -669,11 +819,11 @@ function ItemList({
                   ))}
                 </select>
               </label>
-            ) : (
+            ) : item.channel !== 'blog' ? (
               <span className={`badge status-${statusTone[item.status]}`}>
                 {item.status}
               </span>
-            )}
+            ) : null}
             <span>{item.publishDate || '公開日未定'}</span>
             {item.publicUrl ? (
               <a href={item.publicUrl} rel="noreferrer" target="_blank">
