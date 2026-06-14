@@ -12,6 +12,11 @@ type PostItem = {
   title: string
   body: string
   memo: string
+  episode: string
+  insight: string
+  titleIdeas: string
+  outline: string
+  extraMemo: string
   series: string
   status: Status
   publishDate: string
@@ -20,8 +25,13 @@ type PostItem = {
 
 type MemoItem = {
   id: number
-  memo: string
-  note: string
+  episode: string
+  insight: string
+  titleIdeas: string
+  outline: string
+  extraMemo: string
+  memo?: string
+  note?: string
 }
 
 const statuses: Status[] = ['候補', '執筆中', '予約投稿', '投稿完了']
@@ -57,6 +67,11 @@ const initialPosts: PostItem[] = [
     title: '回復期に整える朝の小さな習慣',
     body: '',
     memo: '導入に「無理なく続く」を入れる',
+    episode: '朝の支度を一気に終わらせようとして疲れた日',
+    insight: '小さく分けるほうが、結果的に続きやすい',
+    titleIdeas: '回復期に整える朝の小さな習慣',
+    outline: '導入 / 朝に負荷が集まりやすい理由 / 小さく整える方法 / まとめ',
+    extraMemo: '導入に「無理なく続く」を入れる',
     series: '回復期の生活リズム',
     status: '候補',
     publishDate: '',
@@ -68,6 +83,11 @@ const initialPosts: PostItem[] = [
     title: '',
     body: '今日の回復メモ。小さく整えるだけでも、次の一歩の足場になる。',
     memo: '短く、読後に残る言葉を先頭へ。',
+    episode: '',
+    insight: '',
+    titleIdeas: '',
+    outline: '',
+    extraMemo: '',
     series: '',
     status: '執筆中',
     publishDate: '',
@@ -79,6 +99,11 @@ const initialPosts: PostItem[] = [
     title: '',
     body: '焦らない日を、ただの停滞ではなく整える時間として記録する。',
     memo: 'Threadsでは少しやわらかい言い回しにする。',
+    episode: '',
+    insight: '',
+    titleIdeas: '',
+    outline: '',
+    extraMemo: '',
     series: '',
     status: '予約投稿',
     publishDate: '2026-06-01',
@@ -89,8 +114,11 @@ const initialPosts: PostItem[] = [
 const initialMemos: MemoItem[] = [
   {
     id: 1,
-    memo: '読者に届けたい言葉を先に集めておく',
-    note: 'note化できそうな断片',
+    episode: '読者に届けたい言葉を先に集めておく',
+    insight: 'note化できそうな断片',
+    titleIdeas: '回復期に届く言葉の集め方',
+    outline: '導入 / なぜ先に集めるか / 使い方 / まとめ',
+    extraMemo: '',
   },
 ]
 
@@ -123,6 +151,69 @@ const loadItems = <T,>(storageKey: string, fallback: T[]) => {
     return fallback
   }
 }
+
+const normalizePost = (post: Partial<PostItem>): PostItem => ({
+  id: typeof post.id === 'number' ? post.id : Date.now(),
+  channel: post.channel ?? 'note',
+  title: post.title ?? '',
+  body: post.body ?? '',
+  memo: post.memo ?? '',
+  episode: post.episode ?? '',
+  insight: post.insight ?? '',
+  titleIdeas: post.titleIdeas ?? '',
+  outline: post.outline ?? '',
+  extraMemo: post.extraMemo ?? (post.channel === 'note' ? post.memo ?? '' : ''),
+  series: post.series ?? '',
+  status: post.status ?? statuses[0],
+  publishDate: post.publishDate ?? '',
+  publicUrl: post.publicUrl ?? '',
+})
+
+const normalizeMemo = (memo: Partial<MemoItem>): MemoItem => ({
+  id: typeof memo.id === 'number' ? memo.id : Date.now(),
+  episode: memo.episode ?? memo.memo ?? '',
+  insight: memo.insight ?? '',
+  titleIdeas: memo.titleIdeas ?? '',
+  outline: memo.outline ?? '',
+  extraMemo: memo.extraMemo ?? memo.note ?? '',
+})
+
+const getMemoSummary = (memo: MemoItem) =>
+  memo.episode ||
+  memo.insight ||
+  memo.titleIdeas ||
+  memo.outline ||
+  memo.extraMemo ||
+  '未入力'
+
+const getStructuredSummary = (
+  item: Pick<PostItem | MemoItem, 'episode' | 'insight' | 'titleIdeas' | 'outline' | 'extraMemo'>,
+) =>
+  item.episode ||
+  item.insight ||
+  item.titleIdeas ||
+  item.outline ||
+  item.extraMemo ||
+  '未入力'
+
+const hasStructuredFields = (
+  item: Pick<PostItem | MemoItem, 'episode' | 'insight' | 'titleIdeas' | 'outline' | 'extraMemo'>,
+) =>
+  Boolean(
+    item.episode ||
+      item.insight ||
+      item.titleIdeas ||
+      item.outline ||
+      item.extraMemo,
+  )
+
+const memoFieldLabels = {
+  episode: 'エピソード',
+  insight: '気づき',
+  titleIdeas: 'タイトル候補',
+  outline: '記事構成',
+  extraMemo: '補足メモ',
+} as const
 
 const persistItems = <T,>(storageKey: string, items: T[]) => {
   const nextValue = JSON.stringify(items)
@@ -171,10 +262,14 @@ const clearAppServiceWorkerCaches = async () => {
 function App() {
   const [activePage, setActivePage] = useState<PageId>('home')
   const [posts, setPosts] = useState<PostItem[]>(() =>
-    loadItems(postsStorageKey, initialPosts),
+    loadItems<Partial<PostItem>>(postsStorageKey, initialPosts).map(
+      normalizePost,
+    ),
   )
   const [memos, setMemos] = useState<MemoItem[]>(() =>
-    loadItems(memosStorageKey, initialMemos),
+    loadItems<Partial<MemoItem>>(memosStorageKey, initialMemos).map(
+      normalizeMemo,
+    ),
   )
   const [editingPostId, setEditingPostId] = useState<number | null>(null)
   const [editingMemoId, setEditingMemoId] = useState<number | null>(null)
@@ -253,6 +348,11 @@ function App() {
     const title = String(formData.get('title') ?? '').trim()
     const body = String(formData.get('body') ?? '').trim()
     const memo = String(formData.get('memo') ?? '').trim()
+    const episode = String(formData.get('episode') ?? '').trim()
+    const insight = String(formData.get('insight') ?? '').trim()
+    const titleIdeas = String(formData.get('titleIdeas') ?? '').trim()
+    const outline = String(formData.get('outline') ?? '').trim()
+    const extraMemo = String(formData.get('extraMemo') ?? '').trim()
     const series = String(formData.get('series') ?? '').trim()
     const isEditingCurrentChannel = editingPost?.channel === channel
 
@@ -265,6 +365,11 @@ function App() {
       title,
       body,
       memo,
+      episode,
+      insight,
+      titleIdeas,
+      outline,
+      extraMemo,
       series,
       status: (String(formData.get('status') ?? '投稿完了') || '投稿完了') as Status,
       publishDate: String(formData.get('publishDate') ?? ''),
@@ -306,14 +411,21 @@ function App() {
   const saveMemo = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
-    const memo = String(formData.get('memo') ?? '').trim()
+    const episode = String(formData.get('episode') ?? '').trim()
+    const insight = String(formData.get('insight') ?? '').trim()
+    const titleIdeas = String(formData.get('titleIdeas') ?? '').trim()
+    const outline = String(formData.get('outline') ?? '').trim()
+    const extraMemo = String(formData.get('extraMemo') ?? '').trim()
 
-    if (!memo) return
+    if (!episode && !insight && !titleIdeas && !outline && !extraMemo) return
 
     const item: MemoItem = {
       id: editingMemo?.id ?? Date.now(),
-      memo,
-      note: String(formData.get('note') ?? '').trim(),
+      episode,
+      insight,
+      titleIdeas,
+      outline,
+      extraMemo,
     }
 
     const nextMemos = editingMemo
@@ -514,8 +626,16 @@ function HomePage({
             {memos.slice(0, 4).map((memo) => (
               <article key={memo.id}>
                 <div className="memo-preview-copy">
-                  <p>{memo.memo}</p>
-                  {memo.note && <small>{memo.note}</small>}
+                  <p>{getMemoSummary(memo)}</p>
+                  <div className="memo-chip-row" aria-label="入力済み項目">
+                    {memo.episode && <span>{memoFieldLabels.episode}</span>}
+                    {memo.insight && <span>{memoFieldLabels.insight}</span>}
+                    {memo.titleIdeas && (
+                      <span>{memoFieldLabels.titleIdeas}</span>
+                    )}
+                    {memo.outline && <span>{memoFieldLabels.outline}</span>}
+                    {memo.extraMemo && <span>{memoFieldLabels.extraMemo}</span>}
+                  </div>
                 </div>
                 <button
                   aria-label="仮メモページで全文を見る"
@@ -618,7 +738,7 @@ function PostPage({
             ? 'タイトル、公開日、公開URL、メモを管理します。'
             : isShortPost
             ? 'ステータス、公開日、公開URLとあわせて、投稿本文とメモを残せます。'
-            : 'タイトル、シリーズ、メモ、ステータス、公開日、公開URLを管理します。'}
+            : 'タイトル、シリーズ、エピソード、気づき、構成、補足メモを分けて管理します。'}
         </p>
       </div>
 
@@ -769,14 +889,48 @@ function PostPage({
                 />
               </label>
             </div>
-            <label>
-              メモ
-              <textarea
-                defaultValue={editingPost?.memo}
-                name="memo"
-                placeholder="構成、狙い、残しておきたい補足など"
-              />
-            </label>
+            <div className="note-planning-fields">
+              <label>
+                エピソード
+                <textarea
+                  defaultValue={editingPost?.episode}
+                  name="episode"
+                  placeholder="出来事、場面、会話、具体例など"
+                />
+              </label>
+              <label>
+                気づき
+                <textarea
+                  defaultValue={editingPost?.insight}
+                  name="insight"
+                  placeholder="そこから見えたこと、読者に渡せそうな視点"
+                />
+              </label>
+              <label>
+                タイトル候補
+                <textarea
+                  defaultValue={editingPost?.titleIdeas}
+                  name="titleIdeas"
+                  placeholder="仮タイトルを複数行で残す"
+                />
+              </label>
+              <label>
+                記事構成
+                <textarea
+                  defaultValue={editingPost?.outline}
+                  name="outline"
+                  placeholder="導入、見出し、流れ、結論など"
+                />
+              </label>
+              <label>
+                補足メモ
+                <textarea
+                  defaultValue={editingPost?.extraMemo}
+                  name="extraMemo"
+                  placeholder="背景、使い道、関連する投稿案など"
+                />
+              </label>
+            </div>
             <FormActions isEditing={Boolean(editingPost)} onCancel={onCancelEdit} />
           </>
         )}
@@ -836,7 +990,7 @@ function ItemList({
     <div className="item-list">
       {items.map((item) => (
         <article
-          className={item.channel === 'note' ? '' : 'social-item'}
+          className={item.channel === 'note' ? 'note-item' : 'social-item'}
           key={item.id}
         >
           <div>
@@ -845,7 +999,45 @@ function ItemList({
             {item.channel === 'note' && item.series && (
               <p className="post-detail">シリーズ: {item.series}</p>
             )}
-            {item.memo && <p className="post-memo">{item.memo}</p>}
+            {item.channel === 'note' && hasStructuredFields(item) ? (
+              <div className="post-card-body">
+                <p className="post-card-title">{getStructuredSummary(item)}</p>
+                <div className="memo-fields">
+                  {item.episode && (
+                    <section>
+                      <span>{memoFieldLabels.episode}</span>
+                      <p>{item.episode}</p>
+                    </section>
+                  )}
+                  {item.insight && (
+                    <section>
+                      <span>{memoFieldLabels.insight}</span>
+                      <p>{item.insight}</p>
+                    </section>
+                  )}
+                  {item.titleIdeas && (
+                    <section>
+                      <span>{memoFieldLabels.titleIdeas}</span>
+                      <p>{item.titleIdeas}</p>
+                    </section>
+                  )}
+                  {item.outline && (
+                    <section>
+                      <span>{memoFieldLabels.outline}</span>
+                      <p>{item.outline}</p>
+                    </section>
+                  )}
+                  {item.extraMemo && (
+                    <section>
+                      <span>{memoFieldLabels.extraMemo}</span>
+                      <p>{item.extraMemo}</p>
+                    </section>
+                  )}
+                </div>
+              </div>
+            ) : (
+              item.memo && <p className="post-memo">{item.memo}</p>
+            )}
           </div>
           <div className="meta">
             {onStatusChange && item.channel !== 'blog' ? (
@@ -930,19 +1122,42 @@ function MemoPage({
         onSubmit={onSubmit}
       >
         <label>
-          メモ
+          エピソード
           <textarea
-            defaultValue={editingMemo?.memo}
-            name="memo"
-            placeholder="浮かんだことを書く"
-            required
+            defaultValue={editingMemo?.episode}
+            name="episode"
+            placeholder="出来事、場面、会話、具体例など"
           />
         </label>
         <label>
-          補足
+          気づき
           <textarea
-            defaultValue={editingMemo?.note}
-            name="note"
+            defaultValue={editingMemo?.insight}
+            name="insight"
+            placeholder="そこから見えたこと、読者に渡せそうな視点"
+          />
+        </label>
+        <label>
+          タイトル候補
+          <textarea
+            defaultValue={editingMemo?.titleIdeas}
+            name="titleIdeas"
+            placeholder="仮タイトルを複数行で残す"
+          />
+        </label>
+        <label>
+          記事構成
+          <textarea
+            defaultValue={editingMemo?.outline}
+            name="outline"
+            placeholder="導入、見出し、流れ、結論など"
+          />
+        </label>
+        <label>
+          補足メモ
+          <textarea
+            defaultValue={editingMemo?.extraMemo}
+            name="extraMemo"
             placeholder="背景、使い道、関連する投稿案など"
           />
         </label>
@@ -957,9 +1172,40 @@ function MemoPage({
         <div className="memo-list">
           {memos.map((memo) => (
             <article key={memo.id}>
-              <div>
-                <p>{memo.memo}</p>
-                {memo.note && <small>{memo.note}</small>}
+              <div className="memo-card-body">
+                <p className="memo-card-title">{getMemoSummary(memo)}</p>
+                <div className="memo-fields">
+                  {memo.episode && (
+                    <section>
+                      <span>{memoFieldLabels.episode}</span>
+                      <p>{memo.episode}</p>
+                    </section>
+                  )}
+                  {memo.insight && (
+                    <section>
+                      <span>{memoFieldLabels.insight}</span>
+                      <p>{memo.insight}</p>
+                    </section>
+                  )}
+                  {memo.titleIdeas && (
+                    <section>
+                      <span>{memoFieldLabels.titleIdeas}</span>
+                      <p>{memo.titleIdeas}</p>
+                    </section>
+                  )}
+                  {memo.outline && (
+                    <section>
+                      <span>{memoFieldLabels.outline}</span>
+                      <p>{memo.outline}</p>
+                    </section>
+                  )}
+                  {memo.extraMemo && (
+                    <section>
+                      <span>{memoFieldLabels.extraMemo}</span>
+                      <p>{memo.extraMemo}</p>
+                    </section>
+                  )}
+                </div>
               </div>
               <div className="item-actions">
                 <button onClick={() => onEdit(memo.id)} type="button">

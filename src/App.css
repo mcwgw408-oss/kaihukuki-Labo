@@ -212,12 +212,34 @@ textarea {
 }
 
 .memo-form {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  align-items: stretch;
+}
+
+.memo-form label:first-child,
+.memo-form label:nth-child(4) {
+  grid-column: span 2;
+}
+
+.memo-form .form-actions {
+  grid-column: 3;
+  grid-row: 1 / span 3;
 }
 
 .note-form {
   grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr) auto;
   align-items: stretch;
+}
+
+.note-planning-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.note-planning-fields label:first-child,
+.note-planning-fields label:nth-child(4) {
+  grid-column: span 2;
 }
 
 .blog-form {
@@ -280,6 +302,10 @@ textarea {
 
 .item-list article.social-item {
   grid-template-columns: minmax(0, 1.2fr) minmax(260px, auto);
+  align-items: start;
+}
+
+.item-list article.note-item {
   align-items: start;
 }
 
@@ -388,6 +414,54 @@ textarea {
   white-space: pre-wrap;
 }
 
+.memo-card-body,
+.post-card-body {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.memo-card-title,
+.post-card-title {
+  font-weight: 700;
+}
+
+.memo-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.memo-fields section {
+  min-width: 0;
+  border-left: 3px solid #cbd8cb;
+  padding-left: 10px;
+}
+
+.memo-fields span {
+  display: block;
+  margin-bottom: 4px;
+  color: #607067;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.memo-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.memo-chip-row span {
+  border-radius: 999px;
+  background: #eef2ea;
+  color: #486052;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+}
+
 .compact article {
   padding: 14px;
 }
@@ -470,13 +544,23 @@ textarea {
   .content-grid,
   .entry-form,
   .memo-form,
+  .memo-form label:first-child,
+  .memo-form label:nth-child(4),
+  .memo-form .form-actions,
   .note-form,
+  .note-planning-fields,
+  .note-planning-fields label:first-child,
+  .note-planning-fields label:nth-child(4),
   .blog-form,
   .social-form,
   .writing-fields,
+  .memo-fields,
   .memo-list article,
+  .item-list article.note-item,
   .item-list article.social-item {
     grid-template-columns: 1fr;
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .meta {
